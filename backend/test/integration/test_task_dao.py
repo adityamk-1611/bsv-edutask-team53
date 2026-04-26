@@ -78,3 +78,4 @@ def test_create_empty_description(dao_instance):
 
     result = dao_instance.create(data)
     assert result["_id"] is not None
+    
