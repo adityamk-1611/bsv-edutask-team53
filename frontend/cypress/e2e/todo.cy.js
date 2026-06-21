@@ -1,155 +1,184 @@
 describe('Requirement 8 - Todo GUI Verification', () => {
 
-  // Helper method for adding todos
-  const createTodoItem = (todoText) => {
+let taskName;
 
-    cy.get('input[placeholder="Add a new todo item"]')
-      .clear()
-      .type(todoText, { force: true })
+const createTodoItem = (todoText) => {
 
-    cy.contains('Add')
-      .click({ force: true })
 
-    cy.wait(1000)
-  }
+cy.get('input[placeholder="Add a new todo item"]')
+  .clear()
+  .type(todoText);
 
-  beforeEach(() => {
+cy.contains('Add')
+  .click();
 
-    // Open application
-    cy.visit('http://localhost:3000')
+cy.contains(todoText)
+  .should('be.visible');
 
-    // User login
-    cy.get('#email')
-      .clear()
-      .type('adityamudam@gmail.com')
 
-    cy.get('input[type="submit"]')
-      .first()
-      .click()
+};
 
-    cy.wait(2500)
+beforeEach(() => {
 
-    // Create task
-    cy.get('input[placeholder="Title of your Task"]')
-      .first()
-      .type('GUI AUTOMATION TASK', { force: true })
 
-    cy.get('input[placeholder*="YouTube"]')
-      .first()
-      .type('5NV6Rdv1a3I', { force: true })
+cy.visit('http://localhost:3000');
 
-    cy.contains('Create new Task')
-      .click({ force: true })
+cy.get('#email')
+  .clear()
+  .type('adityamudam@gmail.com');
 
-    cy.wait(2500)
+cy.get('input[type="submit"]')
+  .first()
+  .click();
 
-    // Open latest task
-    cy.get('img')
-      .last()
-      .click({ force: true })
+cy.get('input[placeholder="Title of your Task"]')
+  .should('be.visible');
 
-    cy.wait(1200)
+taskName = `GUI-AUTO-${Date.now()}`;
 
-  })
+cy.wrap(taskName).as('taskName');
 
-  // ------------------------------------------------
-  // TC1 - Create Todo
-  // ------------------------------------------------
-  it('TC1 - User successfully creates a todo item', () => {
+cy.get('input[placeholder="Title of your Task"]')
+  .first()
+  .type(taskName);
 
-    createTodoItem('Study Cypress Framework')
+cy.get('input[placeholder*="YouTube"]')
+  .first()
+  .type('5NV6Rdv1a3I');
 
-    cy.contains('Study Cypress Framework')
-      .should('exist')
+cy.contains('Create new Task')
+  .click();
 
-  })
+cy.get('img')
+  .last()
+  .should('be.visible')
+  .click();
 
-  // ------------------------------------------------
-  // TC2 - Long Todo Description
-  // ------------------------------------------------
-  it('TC2 - User adds a todo with long description', () => {
+cy.get('body')
+  .should('be.visible');
 
-    const longTodo =
-      'Complete graphical user interface verification assignment'
 
-    createTodoItem(longTodo)
+});
 
-    cy.contains(longTodo)
-      .should('be.visible')
+afterEach(() => {
 
-  })
+  const email = 'adityamudam@gmail.com';
 
-  // ------------------------------------------------
-  // TC3 - Toggle Todo
-  // ------------------------------------------------
-  it('TC3 - User marks a todo item as completed', () => {
+  cy.request(`http://localhost:5001/users/bymail/${email}`)
+    .then((res) => {
 
-    createTodoItem('Finish GUI Lab')
+      const user = res.body;
 
-    cy.contains('Finish GUI Lab')
-      .parent()
-      .click({ force: true })
+      const uid =
+        user && user._id && user._id.$oid
+          ? user._id.$oid
+          : user._id;
 
-    cy.contains('Finish GUI Lab')
-      .should('exist')
+      if (!uid) return;
 
-  })
+      cy.request(`http://localhost:5001/tasks/ofuser/${uid}`)
+        .then((r) => {
 
-  // ------------------------------------------------
-  // TC4 - Restore Todo
-  // ------------------------------------------------
-  it('TC4 - User restores completed todo to active state', () => {
+          const tasks = r.body || [];
 
-    createTodoItem('Read Cypress Notes')
+          cy.wrap(tasks).each((task) => {
 
-    cy.contains('Read Cypress Notes')
-      .parent()
-      .click({ force: true })
+            const tid =
+              task._id && task._id.$oid
+                ? task._id.$oid
+                : task._id;
 
-    cy.wait(600)
+            cy.request(
+              'DELETE',
+              `http://localhost:5001/tasks/byid/${tid}`
+            );
 
-    cy.contains('Read Cypress Notes')
-      .parent()
-      .click({ force: true })
+          });
 
-    cy.contains('Read Cypress Notes')
-      .should('be.visible')
+        });
 
-  })
+    });
 
-  // ------------------------------------------------
-  // TC5 - Delete Todo
-  // ------------------------------------------------
-  it('TC5 - User deletes a selected todo item', () => {
+});
 
-    createTodoItem('Temporary Task')
+it('TC1 - Create todo item', () => {
 
-    // Confirm todo creation
-    cy.contains('Temporary Task')
-      .should('be.visible')
 
-    // Delete todo
-    cy.contains('Temporary Task')
-      .parent()
-      .within(() => {
+createTodoItem('Study Cypress Framework');
 
-        cy.contains('✖')
-          .click({ force: true })
+cy.contains('Study Cypress Framework')
+  .should('exist');
 
-      })
 
-    // Give backend/frontend time to update
-    cy.wait(2500)
+});
 
-    // Reload UI to sync latest data
-    cy.reload()
 
-    cy.wait(2500)
+it('TC2 - Create todo with long description', () => {
 
-    // Final verification
-    cy.get('body')
-      .should('not.contain', 'Temporary Task')
 
-  })
+const longTodo =
+  'Complete graphical user interface verification assignment using Cypress automation';
 
-})
+createTodoItem(longTodo);
+
+cy.contains(longTodo)
+  .should('be.visible');
+
+
+});
+
+it('TC3 - Toggle active todo to completed', () => {
+
+
+createTodoItem('Finish GUI Lab');
+
+cy.contains('Finish GUI Lab')
+  .parent()
+  .click({ force: true });
+
+cy.contains('Finish GUI Lab')
+  .should('exist');
+
+
+});
+
+it('TC4 - Restore completed todo', () => {
+
+
+createTodoItem('Read Cypress Notes');
+
+cy.contains('Read Cypress Notes')
+  .parent()
+  .click({ force: true });
+
+cy.contains('Read Cypress Notes')
+  .parent()
+  .click({ force: true });
+
+cy.contains('Read Cypress Notes')
+  .should('be.visible');
+
+
+});
+
+it('TC5 - Delete todo item', () => {
+
+
+createTodoItem('Temporary Task');
+
+cy.contains('Temporary Task')
+  .parent()
+  .within(() => {
+
+    cy.contains('✖')
+      .click({ force: true });
+
+  });
+
+cy.get('body')
+  .should('not.contain', 'Temporary Task');
+
+
+});
+
+});
